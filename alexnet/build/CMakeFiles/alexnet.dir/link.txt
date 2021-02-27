@@ -1,1 +1,0 @@
-/usr/bin/c++  -g   CMakeFiles/alexnet.dir/alexnet.cpp.o  -o alexnet  -L/usr/local/cuda/lib64 -Wl,-rpath,/usr/local/cuda/lib64 -lnvinfer -lcudart 

@@ -1,3 +1,0 @@
-/home/alexnet/build/CMakeFiles/rebuild_cache.dir
-/home/alexnet/build/CMakeFiles/edit_cache.dir
-/home/alexnet/build/CMakeFiles/alexnet.dir
