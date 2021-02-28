@@ -68,8 +68,8 @@ private:
 /**
  * Creates the network, configures the builder and creates the network engine.
  * 
- * This function creates the MNIST network by using the API to create a model and builds
- * the engine that will be used to run MNIST (mEngine)
+ * This function creates the Alexnet network by using the API to create a model and builds
+ * the engine that will be used to run Alexnet (mEngine)
  * 
  * Returns true if the engine was created successfully and false otherwise
 **/
