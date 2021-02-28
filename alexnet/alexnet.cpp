@@ -96,7 +96,7 @@ bool AlexnetTrt::build(){
     assert(mEngine != nullptr)
 
     // Serialize the engine
-    modelStream = engine -> serialize();
+    modelStream = mEngine -> serialize();
     
     // destroy everything
     mEngine -> destroy();
