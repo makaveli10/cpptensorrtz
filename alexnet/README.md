@@ -13,7 +13,7 @@
  $ docker images
  $ docker run --gpus all -d -it -v {/path/to/this/repo}:/home nvcr.io/nvidia/tensorrt:20.12-py3
 ```
-> Note - Replace **nvcr.io/nvidia/tensorrt:20.03-py3** with the **repository_name:tag** that you see when you run __docker images__ command. 
+> Note - Replace **nvcr.io/nvidia/tensorrt:20.12-py3** with the **repository_name:tag** that you see when you run __docker images__ command. 
 4. Login to the container by running the following command:
 ```
  $ docker attach 2be
