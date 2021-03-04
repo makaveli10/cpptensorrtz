@@ -33,3 +33,4 @@ Note: This method is tested using Ubuntu Distros. This method doesn't work for W
 1. [Docker quick-start](https://docker-curriculum.com/)
 2. [TensorRT Developer Guide](https://docs.nvidia.com/deeplearning/sdk/tensorrt-developer-guide/index.html)
 3. [TensorRT NVIDIA GPU Cloud](https://ngc.nvidia.com/catalog/containers/nvidia:tensorrt)
+4. [wang-xinyu/tensorrtx](https://github.com/wang-xinyu/tensorrtx). Thanks to this repo for all the resources and inspiration.
