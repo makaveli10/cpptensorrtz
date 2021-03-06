@@ -18,8 +18,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_BUILD_TYPE Debug)
 
 # include
-# include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${MAIN_DIR}/common)
 
 # include and link cuda
 include_directories(/usr/local/cuda/include)
