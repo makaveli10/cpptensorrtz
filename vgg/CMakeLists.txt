@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # set the project name
-project(alexnet)
+project(vgg16)
 
 add_definitions(-std=c++11)
 
