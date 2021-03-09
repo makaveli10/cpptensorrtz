@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # set the project name
-project(vgg16)
+project(vgg)
 
 add_definitions(-std=c++11)
 

@@ -76,7 +76,7 @@ private:
     std::map<std::string, Weights> loadWeights(const std::string& file);
 
     bool deserialize();
-}
+};
 
 
 bool Vgg16Trt::build()
@@ -85,7 +85,7 @@ bool Vgg16Trt::build()
     weightMap = loadWeights(mParams.weightsFile);
 
     // create builder
-    IBuilder* builder = createInferBuilder(&gLogger);
+    IBuilder* builder = createInferBuilder(gLogger);
     assert(builder != nullptr);
 
     // create builder config
@@ -129,73 +129,289 @@ bool Vgg16Trt::build()
 }
 
 
-// VGG(
-//   (features): Sequential(
-//     (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (1): ReLU(inplace=True)
-//     (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (3): ReLU(inplace=True)
-//     (4): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-//     (5): Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (6): ReLU(inplace=True)
-//     (7): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (8): ReLU(inplace=True)
-//     (9): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-//     (10): Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (11): ReLU(inplace=True)
-//     (12): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (13): ReLU(inplace=True)
-//     (14): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (15): ReLU(inplace=True)
-//     (16): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-//     (17): Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (18): ReLU(inplace=True)
-//     (19): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (20): ReLU(inplace=True)
-//     (21): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (22): ReLU(inplace=True)
-//     (23): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-//     (24): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (25): ReLU(inplace=True)
-//     (26): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (27): ReLU(inplace=True)
-//     (28): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-//     (29): ReLU(inplace=True)
-//     (30): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-//   )
-//   (avgpool): AdaptiveAvgPool2d(output_size=(7, 7))
-//   (classifier): Sequential(
-//     (0): Linear(in_features=25088, out_features=4096, bias=True)
-//     (1): ReLU(inplace=True)
-//     (2): Dropout(p=0.5, inplace=False)
-//     (3): Linear(in_features=4096, out_features=4096, bias=True)
-//     (4): ReLU(inplace=True)
-//     (5): Dropout(p=0.5, inplace=False)
-//     (6): Linear(in_features=4096, out_features=1000, bias=True)
-//   )
-// )
+/**
+ * Uses the TensorRT API to create the network engine.  
+**/
+bool Vgg16Trt::createEngine(IBuilder* builder, IBuilderConfig* config)
+{
+    // Initialize NetworkDefinition
+    INetworkDefinition* network = builder -> createNetworkV2(0U);
+
+    // add input 
+    auto data = network -> addInput(mParams.inputTensorName, DataType::kFLOAT, Dims3{3, mParams.inputH, mParams.inputW});
+    assert(data);
+
+    // add conv, relu blocks
+    auto conv1 = network -> addConvolutionNd(*data, 64, DimsHW{3, 3}, weightMap["features.0.weight"], weightMap["features.0.bias"]);
+    assert(conv1);
+    conv1 -> setPaddingNd(DimsHW{1, 1});
+    auto relu1 = network -> addActivation(*conv1 -> getOutput(0), ActivationType::kRELU);
+    assert(relu1);
+
+    auto conv2 = network -> addConvolutionNd(*relu1 -> getOutput(0), 64, DimsHW{3, 3}, weightMap["features.2.weight"], weightMap["features.2.bias"]);
+    assert(conv2);
+    conv2 -> setPaddingNd(DimsHW{1, 1});
+    auto relu2 = network -> addActivation(*conv2 -> getOutput(0), ActivationType::kRELU);
+    assert(relu2);
+
+    // add pooling
+    auto pool1 = network -> addPoolingNd(*relu2->getOutput(0), PoolingType::kMAX, DimsHW{2, 2});
+    assert(pool1);
+    pool1 -> setStrideNd(DimsHW{2,2});
+
+    auto conv3 = network -> addConvolutionNd(*pool1 -> getOutput(0), 128, DimsHW{3, 3}, weightMap["features.5.weight"], weightMap["features.5.bias"]);
+    assert(conv3);
+    conv3 -> setPaddingNd(DimsHW{1, 1});
+    auto relu3 = network -> addActivation(*conv3 -> getOutput(0), ActivationType::kRELU);
+    assert(relu3);
+
+    auto conv4 = network -> addConvolutionNd(*relu3 -> getOutput(0), 128, DimsHW{3, 3}, weightMap["features.7.weight"], weightMap["features.7.bias"]);
+    assert(conv4);
+    conv4 -> setPaddingNd(DimsHW{1, 1});
+    auto relu4 = network -> addActivation(*conv4 -> getOutput(0), ActivationType::kRELU);
+    assert(relu4);
+
+    // add pooling
+    auto pool2 = network -> addPoolingNd(*relu4->getOutput(0), PoolingType::kMAX, DimsHW{2, 2});
+    assert(pool2);
+    pool2 -> setStrideNd(DimsHW{2,2});
+
+    auto conv5 = network -> addConvolutionNd(*pool2 -> getOutput(0), 256, DimsHW{3, 3}, weightMap["features.10.weight"], weightMap["features.10.bias"]);
+    assert(conv5);
+    conv5 -> setPaddingNd(DimsHW{1, 1});
+    auto relu5 = network -> addActivation(*conv5 -> getOutput(0), ActivationType::kRELU);
+    assert(relu5);
+
+    auto conv6 = network -> addConvolutionNd(*relu5 -> getOutput(0), 256, DimsHW{3, 3}, weightMap["features.12.weight"], weightMap["features.12.bias"]);
+    assert(conv6);
+    conv6 -> setPaddingNd(DimsHW{1, 1});
+    auto relu6 = network -> addActivation(*conv6 -> getOutput(0), ActivationType::kRELU);
+    assert(relu6);
+
+    auto conv7 = network -> addConvolutionNd(*relu6 -> getOutput(0), 256, DimsHW{3, 3}, weightMap["features.14.weight"], weightMap["features.14.bias"]);
+    assert(conv7);
+    conv7 -> setPaddingNd(DimsHW{1, 1});
+    auto relu7 = network -> addActivation(*conv7 -> getOutput(0), ActivationType::kRELU);
+    assert(relu7);
+
+    // add pooling
+    auto pool3 = network -> addPoolingNd(*relu7->getOutput(0), PoolingType::kMAX, DimsHW{2, 2});
+    assert(pool3);
+    pool3 -> setStrideNd(DimsHW{2,2});
+
+    auto conv8 = network -> addConvolutionNd(*pool3 -> getOutput(0), 512, DimsHW{3, 3}, weightMap["features.17.weight"], weightMap["features.17.bias"]);
+    assert(conv8);
+    conv8 -> setPaddingNd(DimsHW{1, 1});
+    auto relu8 = network -> addActivation(*conv8 -> getOutput(0), ActivationType::kRELU);
+    assert(relu8);
+
+    auto conv9 = network -> addConvolutionNd(*relu8 -> getOutput(0), 512, DimsHW{3, 3}, weightMap["features.19.weight"], weightMap["features.19.bias"]);
+    assert(conv9);
+    conv9 -> setPaddingNd(DimsHW{1, 1});
+    auto relu9 = network -> addActivation(*conv9 -> getOutput(0), ActivationType::kRELU);
+    assert(relu9);
+
+    auto conv10 = network -> addConvolutionNd(*relu9 -> getOutput(0), 512, DimsHW{3, 3}, weightMap["features.21.weight"], weightMap["features.21.bias"]);
+    assert(conv10);
+    conv10 -> setPaddingNd(DimsHW{1, 1});
+    auto relu10 = network -> addActivation(*conv10 -> getOutput(0), ActivationType::kRELU);
+    assert(relu10);
+
+    // add pooling
+    auto pool4 = network -> addPoolingNd(*relu10->getOutput(0), PoolingType::kMAX, DimsHW{2, 2});
+    assert(pool4);
+    pool4 -> setStrideNd(DimsHW{2,2});
+
+    auto conv11 = network -> addConvolutionNd(*pool4 -> getOutput(0), 512, DimsHW{3, 3}, weightMap["features.24.weight"], weightMap["features.24.bias"]);
+    assert(conv11);
+    conv11 -> setPaddingNd(DimsHW{1, 1});
+    auto relu11 = network -> addActivation(*conv11 -> getOutput(0), ActivationType::kRELU);
+    assert(relu11);
+
+    auto conv12 = network -> addConvolutionNd(*relu11 -> getOutput(0), 512, DimsHW{3, 3}, weightMap["features.26.weight"], weightMap["features.26.bias"]);
+    assert(conv12);
+    conv12 -> setPaddingNd(DimsHW{1, 1});
+    auto relu12 = network -> addActivation(*conv12 -> getOutput(0), ActivationType::kRELU);
+    assert(relu12);
+
+    auto conv13 = network -> addConvolutionNd(*relu12 -> getOutput(0), 512, DimsHW{3, 3}, weightMap["features.28.weight"], weightMap["features.28.bias"]);
+    assert(conv13);
+    conv13 -> setPaddingNd(DimsHW{1, 1});
+    auto relu13 = network -> addActivation(*conv13 -> getOutput(0), ActivationType::kRELU);
+    assert(relu13);
+
+    // add pooling
+    auto pool5 = network -> addPoolingNd(*relu13->getOutput(0), PoolingType::kMAX, DimsHW{2, 2});
+    assert(pool5);
+    pool5 -> setStrideNd(DimsHW{2,2});
+
+    // add fully connected layers
+    auto fc1 = network-> addFullyConnected(*pool5 -> getOutput(0), 4096, weightMap["classifier.0.weight"], weightMap["classifier.0.bias"]);
+    assert(fc1);
+    auto relu14 = network -> addActivation(*fc1 -> getOutput(0), ActivationType::kRELU);
+    assert(relu14);
+
+    auto fc2 = network-> addFullyConnected(*relu14 -> getOutput(0), 4096, weightMap["classifier.3.weight"], weightMap["classifier.3.bias"]);
+    assert(fc2);
+    auto relu15 = network -> addActivation(*fc2 -> getOutput(0), ActivationType::kRELU);
+    assert(relu15);
+
+    auto fc3 = network-> addFullyConnected(*relu15 -> getOutput(0), 1000, weightMap["classifier.6.weight"], weightMap["classifier.6.bias"]);
+    
+    // set ouput blob name
+    fc3 -> getOutput(0) -> setName(mParams.outputTensorName);
+
+    // mark the output
+    network -> markOutput(*fc3 -> getOutput(0));
+
+    // set batchsize and workspace size
+    builder -> setMaxBatchSize(mParams.batchSize);
+    config -> setMaxWorkspaceSize(1 << 28); // 256 MiB
+
+    // build engine
+    mEngine = builder -> buildEngineWithConfig(*network, *config);
+
+    std::cout << "engine built." << std::endl;
+    
+    // destroy
+    network -> destroy();
+
+    // fere host mem
+    for(auto& mem: weightMap)
+    {
+        free((void*)(mem.second.values));
+    }
+
+    if (mEngine == nullptr) return false;
+    return true;
+}
+
 
 /**
  * Cleans up any state created in the VggTrt class
 **/
-bool Vgg16Trt::cleanup()
+bool Vgg16Trt::cleanUp()
 {
-    if (mEngine != nullptr)
-    {
-        mEngine -> destroy();
-        mEngine = nullptr;
-    }
-
-    if (mCOntext != nullptr)
-    {
+    if (mContext != nullptr)
         mContext -> destroy();
-        mContext = nullptr;
-    }
+    
+    if (mEngine != nullptr)
+        mEngine -> destroy();
 
     return true;
 }
 
 
+/**
+ * Performs inference on the given input and 
+ * writes the output from device to host memory.
+**/
+void Vgg16Trt::doInference(float* input, float* output, int batchSize)
+{
+    if (mContext==nullptr || mEngine==nullptr)
+    {    
+        std::cout << "deserializing.." << std::endl;
+        if(!deserialize()) return;
+    }
+    // Pointers to input and output device buffers to pass to engine.
+    // Engine requires exactly IEngine::getNbBindings() number of buffers
+    assert(mEngine -> getNbBindings() == 2);
+    void* buffers[2];
+
+    // In order to bind the buffers, we need to know the names of the input and output tensors.
+    // Note that indices are guaranteed to be less than IEngine::getNbBindings()
+    const int inputIndex = mEngine -> getBindingIndex(mParams.inputTensorName);
+    const int outputIndex = mEngine -> getBindingIndex(mParams.outputTensorName);
+
+    // Create GPU buffers on device
+    CHECK(cudaMalloc(&buffers[inputIndex], batchSize * 3 * mParams.inputH * mParams.inputW * sizeof(float)));
+    CHECK(cudaMalloc(&buffers[outputIndex], batchSize * mParams.outputSize * sizeof(float)));
+
+    // create cuda stream
+    cudaStream_t cudaStream;
+    CHECK(cudaStreamCreate(&cudaStream));
+
+    // DMA input batch data to device, infer on the batch asynchronously, and DMA output back to host
+    CHECK(cudaMemcpyAsync(buffers[inputIndex], input, batchSize * 3 * mParams.inputH * mParams.inputW * sizeof(float), cudaMemcpyHostToDevice));
+    mContext -> enqueue(batchSize, buffers, cudaStream, nullptr);
+    CHECK(cudaMemcpyAsync(output, buffers[outputIndex], batchSize * mParams.outputSize * sizeof(float), cudaMemcpyDeviceToHost));
+    cudaStreamSynchronize(cudaStream);
+
+    // release stream 
+    cudaStreamDestroy(cudaStream);
+    CHECK(cudaFree(buffers[inputIndex]));
+    CHECK(cudaFree(buffers[outputIndex]));
+}
+
+
+/**
+ * Uses the serialized engine file and reads
+ * data into a stream to deserialize the cuda 
+ * engine from the stream. 
+**/
+bool Vgg16Trt::deserialize(){
+    if (mContext != nullptr && mEngine != nullptr)
+    {
+        return true;
+    }
+
+    if (mEngine == nullptr)
+    {
+        char* trtModelStream{nullptr};
+        size_t size{0};
+
+        // open file
+        std::ifstream f(mParams.trtEngineFile, std::ios::binary);
+
+        if (f.good())
+        {
+            // get size
+            f.seekg(0, f.end);
+            size = f.tellg();
+            f.seekg(0, f.beg);
+
+            trtModelStream = new char[size];
+
+            // read data as a block
+            f.read(trtModelStream, size);
+            f.close();
+        }
+
+        if (trtModelStream == nullptr)
+        {
+            return false;
+        }
+
+        // deserialize
+        IRuntime* runtime = createInferRuntime(gLogger);
+        assert(runtime);
+
+        mEngine = runtime -> deserializeCudaEngine(trtModelStream, size, 0);
+        assert(mEngine != nullptr);
+
+        // clean up
+        runtime -> destroy();
+        delete[] trtModelStream;
+
+    }
+
+    std::cout << "deserialized engine successfully." << std::endl;
+
+    // create execution context
+    mContext = mEngine -> createExecutionContext();
+    assert(mContext != nullptr);
+
+    return true;
+}
+
+
+/**
+ * Loads weights from Weights file.
+ * Tensorrt weights file have a simple space delimited format:
+ * [type] [size] <data x size in hex>
+ * 
+ * Returns weightMap
+**/
 std::map<std::string, Weights> Vgg16Trt::loadWeights(const std::string& file)
 {
     std::cout<<"Loading weights ..." << std::endl;
@@ -214,7 +430,7 @@ std::map<std::string, Weights> Vgg16Trt::loadWeights(const std::string& file)
     while(count--)
     {
         // Initialize weight with Datatype and nullptr
-        Weight wt{DataType::kFLOAT, nullptr, 0};
+        Weights wt{DataType::kFLOAT, nullptr, 0};
         uint32_t size;
 
         // Read name and size(decimal format) of blob
@@ -234,4 +450,88 @@ std::map<std::string, Weights> Vgg16Trt::loadWeights(const std::string& file)
     }
 
     return weightMap;
+}
+
+
+/**
+ * Initializes AlexnetTrt class params in the 
+ * AlexnetTrtParams structure.
+**/
+Vgg16TrtParams initializeParams()
+{
+    Vgg16TrtParams params;
+
+    params.batchSize = 1;
+    params.fp16 = true;
+
+    params.inputH = 224;
+    params.inputW = 224;
+    params.outputSize = 1000;
+
+    // change weights file name here
+    params.weightsFile = "../vgg16.wts";
+
+    // change engine file name here
+    params.trtEngineFile = "vgg16.engine";
+    return params;
+}
+
+
+int main(int argc, char** argv){
+    if (argc != 2)
+    {
+        std::cerr << "Invalid args. please check." << std::endl;
+        std::cerr <<"./alexnet -r  // create engine" << std::endl;
+        return 0;
+    }
+
+    Vgg16TrtParams params = initializeParams();
+    Vgg16Trt vgg16(params);
+
+    // check if engine exists already
+    std::ifstream f(params.trtEngineFile, std::ios::binary);
+    
+    // if engine does not exists build, serialize and save
+    if(!f.good())
+    {
+        std::cout << "Building network ..." << std::endl;
+        f.close();
+        vgg16.build();
+    }
+    else
+    {
+        // deserialize
+        std::cout << "engine already exists ..." << std::endl;
+        // vgg16.deserialize();
+    }
+
+    // create data
+    float data[3 * params.inputH * params.inputW];
+    for(int i=0; i<3*params.inputH*params.inputW; i++)
+    {
+        data[i] = 1;
+    }
+    
+    // run inference
+    float prob[params.outputSize];
+    for(int i=0; i<100; i++)
+    {
+        auto start = std::chrono::system_clock::now();
+        vgg16.doInference(data, prob, 1);
+        auto end = std::chrono::system_clock::now();
+        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+    }
+
+    // cleanup
+    bool cleaned = vgg16.cleanUp();
+    
+    std::cout << "\nOutput:\n\n";
+    for (unsigned int i = 0; i < params.outputSize; i++)
+    {
+        std::cout << prob[i] << ", ";
+        if (i % 10 == 0) std::cout << i / 10 << std::endl;
+    }
+    std::cout << std::endl;
+
+    return 0;
 }
