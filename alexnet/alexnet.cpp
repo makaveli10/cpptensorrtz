@@ -452,7 +452,7 @@ int main(int argc, char** argv){
     // cleanup
     bool cleaned = alex.cleanUp();
 
-     // Print histogram of the output distribution
+    // Print histogram of the output distribution
     std::cout << "\nOutput:\n\n";
     for (unsigned int i = 0; i < 1000; i++)
     {
