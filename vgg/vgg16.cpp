@@ -454,8 +454,8 @@ std::map<std::string, Weights> Vgg16Trt::loadWeights(const std::string& file)
 
 
 /**
- * Initializes AlexnetTrt class params in the 
- * AlexnetTrtParams structure.
+ * Initializes VggTrt class params in the 
+ * VggTrtParams structure.
 **/
 Vgg16TrtParams initializeParams()
 {
@@ -481,7 +481,7 @@ int main(int argc, char** argv){
     if (argc != 2)
     {
         std::cerr << "Invalid args. please check." << std::endl;
-        std::cerr <<"./alexnet -r  // create engine" << std::endl;
+        std::cerr <<"./Vgg -r  // create engine" << std::endl;
         return 0;
     }
 
